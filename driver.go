@@ -88,6 +88,28 @@ func (d glusterfsDriver) Path(r volume.Request) volume.Response {
 }
 
 func (d glusterfsDriver) Mount(r volume.Request) volume.Response {
+	log.Printf("Creating volume %s\n", r.Name)
+	d.m.Lock()
+	defer d.m.Unlock()
+	m := d.mountpoint(r.Name)
+
+	if _, ok := d.volumes[m]; ok {
+		return volume.Response{}
+	}
+
+	if d.restClient != nil {
+		exist, err := d.restClient.VolumeExist(r.Name)
+		if err != nil {
+			return volume.Response{Err: err.Error()}
+		}
+
+		if !exist {
+			if err := d.restClient.CreateVolume(r.Name, d.servers); err != nil {
+				return volume.Response{Err: err.Error()}
+			}
+		}
+	}
+	return volume.Response{}
 	d.m.Lock()
 	defer d.m.Unlock()
 	m := d.mountpoint(r.Name)
